@@ -57,6 +57,60 @@ function setupScene({ scene, camera, renderer, player, controllers }) {
 	scene.add(sphere);
 	sphere.position.set(0.6, 0.4, -0.5);
 	sphere.scale.set(1.2, 1.2, 1.2);
+
+
+	const floatingText = new Text();
+	floatingText.text = 'CUXR';
+	floatingText.fontSize = 1;
+	floatingText.position.set(0, 2, -3); // Adjust position as needed
+	floatingText.color = 0xffffff;
+	floatingText.font = 'assets/SpaceMono-Bold.ttf'; // Use your preferred font
+	floatingText.anchorX = 'center';
+	floatingText.anchorY = 'middle';
+  
+	// Custom shader for glow effect
+	const glowMaterial = new THREE.ShaderMaterial({
+	  uniforms: {
+		baseTexture: { value: null },
+		glowColor: { value: new THREE.Color(0x00ffff) },
+		glowIntensity: { value: 0.5 }
+	  },
+	  vertexShader: `
+		varying vec2 vUv;
+		void main() {
+		  vUv = uv;
+		  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+		}
+	  `,
+	  fragmentShader: `
+		uniform sampler2D baseTexture;
+		uniform vec3 glowColor;
+		uniform float glowIntensity;
+		varying vec2 vUv;
+		void main() {
+		  vec4 texColor = texture2D(baseTexture, vUv);
+		  gl_FragColor = texColor + vec4(glowColor * glowIntensity, 1.0);
+		}
+	  `,
+	  transparent: true,
+	  blending: THREE.AdditiveBlending
+	});
+  
+	floatingText.sync(() => {
+	  floatingText.material = glowMaterial;
+	  glowMaterial.uniforms.baseTexture.value = floatingText.material.map;
+	  scene.add(floatingText);
+  
+	  // Animate the glow effect
+	  gsap.to(glowMaterial.uniforms.glowIntensity, {
+		value: 0,
+		duration: 1.5,
+		repeat: -1,
+		yoyo: true,
+		ease: "power2.inOut"
+	  });
+	});
+
 }
 
 
