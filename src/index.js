@@ -6,12 +6,6 @@ import { XR_BUTTONS } from 'gamepad-wrapper';
 import { gsap } from 'gsap';
 import { init } from './init.js';
 
-
-const bullets = {};
-const forwardVector = new THREE.Vector3(0, 0, -1);
-const bulletSpeed = 10;
-const bulletTimeToLive = 1;
-
 const blasterGroup = new THREE.Group();
 const targets = [];
 
@@ -72,6 +66,15 @@ const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
 const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
 
+
+// Constants to control bullet behavior
+const forwardVector = new THREE.Vector3(0, 0, -1);
+const bulletSpeed = 10;
+const bulletTimeToLive = 1;
+const bullets = {};
+
+
+
 // This function is called on every frame update
 function onFrame(delta, time, {scene, camera, renderer, player, controllers}) {
 	if (controllers.right) {
@@ -86,6 +89,36 @@ function onFrame(delta, time, {scene, camera, renderer, player, controllers}) {
 		// Set bullet position and rotation to the raySpace
 		raySpace.getWorldPosition(bullet.position);
 		raySpace.getWorldQuaternion(bullet.quaternion);
+
+		// Capture the controller's orientation in world space to determine the direction of the bullet
+		const globalQuaternion = raySpace.getWorldQuaternion(bullet.quaternion);
+		// Determine the direction in which the bullet will move based on the controller's orientation
+		const directionVector = forwardVector
+			.clone()
+			.applyQuaternion(globalQuaternion);
+		// Store custom data about the bullet, including its velocity and time to live
+		bullet.userData = {
+			velocity: directionVector.multiplyScalar(bulletSpeed),
+			timeToLive: bulletTimeToLive,
+		};
+		// Keep track of the active bullet using its unique ID
+		bullets[bullet.uuid] = bullet;
+
+
+		// Iterate through all active bullets to update their positions and check their lifespan
+		Object.values(bullets).forEach(bullet => {
+			// Lifespan check: Each bullet’s TTL decreases over time. Once the TTL drops below zero, the bullet is removed from both the scene and the bullets object to free up resources and maintain performance.
+			if (bullet.userData.timeToLive < 0) {
+			  delete bullets[bullet.uuid]; // Remove the bullet from the bullets object
+			  scene.remove(bullet); // Remove the bullet from the scene
+			  return; // Exit the current iteration early
+			}
+			// Position update: The bullet’s position is updated by moving it along its velocity vector, scaled by delta (the time since the last frame). This makes the bullet move forward at the correct speed each frame.
+			const deltaVec = bullet.userData.velocity.clone().multiplyScalar(delta); // Calculate the movement vector for this frame
+			bullet.position.add(deltaVec); // Update the bullet's position
+			bullet.userData.timeToLive -= delta; // Decrease the bullet's TTL by the time since the last frame
+		  });
+		
 	  }
 	}
   }
