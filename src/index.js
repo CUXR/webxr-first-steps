@@ -7,14 +7,6 @@ import { gsap } from 'gsap';
 import { init } from './init.js';
 
 
-
-
-const bulletGeometry = new THREE.SphereGeometry(0.02);
-const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
-const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
-
-
-
 const bullets = {};
 const forwardVector = new THREE.Vector3(0, 0, -1);
 const bulletSpeed = 10;
@@ -73,12 +65,25 @@ function setupScene({ scene, camera, renderer, player, controllers }) {
 	sphere.scale.set(1.2, 1.2, 1.2);
 }
 
+
+// bullet
+const bulletGeometry = new THREE.SphereGeometry(0.02);
+const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
+const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+
+// This function is called on every frame update
 function onFrame(delta, time, {scene, camera, renderer, player, controllers}) {
 	if (controllers.right) {
+	  // Destructure the gamepad and raySpace from the right controller
 	  const {gamepad, raySpace} = controllers.right;
+	  // Check if the trigger button is pressed
 	  if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+		// Clone the bullet prototype
 		const bullet = bulletPrototype.clone();
 		scene.add(bullet);
+		//The raySpace represents the XR controller’s ray-casting direction and position in 3D space.
+		// Set bullet position and rotation to the raySpace
 		raySpace.getWorldPosition(bullet.position);
 		raySpace.getWorldQuaternion(bullet.quaternion);
 	  }
