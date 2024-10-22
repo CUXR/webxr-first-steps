@@ -1,10 +1,3 @@
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-
 import * as THREE from 'three';
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -12,6 +5,15 @@ import { Text } from 'troika-three-text';
 import { XR_BUTTONS } from 'gamepad-wrapper';
 import { gsap } from 'gsap';
 import { init } from './init.js';
+
+
+
+
+const bulletGeometry = new THREE.SphereGeometry(0.02);
+const bulletMaterial = new THREE.MeshStandardMaterial({color: 'gray'});
+const bulletPrototype = new THREE.Mesh(bulletGeometry, bulletMaterial);
+
+
 
 const bullets = {};
 const forwardVector = new THREE.Vector3(0, 0, -1);
@@ -71,96 +73,16 @@ function setupScene({ scene, camera, renderer, player, controllers }) {
 	sphere.scale.set(1.2, 1.2, 1.2);
 }
 
-function onFrame(
-	delta,
-	time,
-	{ scene, camera, renderer, player, controllers },
-) {
+function onFrame(delta, time, {scene, camera, renderer, player, controllers}) {
 	if (controllers.right) {
-		const { gamepad, raySpace, mesh } = controllers.right;
-		if (!raySpace.children.includes(blasterGroup)) {
-			raySpace.add(blasterGroup);
-			mesh.visible = false;
-		}
-		if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
-			try {
-				gamepad.getHapticActuator(0).pulse(0.6, 100);
-			} catch {
-				// do nothing
-			}
-
-			// Play laser sound
-			if (laserSound.isPlaying) laserSound.stop();
-			laserSound.play();
-
-			const bulletPrototype = blasterGroup.getObjectByName('bullet');
-			if (bulletPrototype) {
-				const bullet = bulletPrototype.clone();
-				scene.add(bullet);
-				bulletPrototype.getWorldPosition(bullet.position);
-				bulletPrototype.getWorldQuaternion(bullet.quaternion);
-
-				const directionVector = forwardVector
-					.clone()
-					.applyQuaternion(bullet.quaternion);
-				bullet.userData = {
-					velocity: directionVector.multiplyScalar(bulletSpeed),
-					timeToLive: bulletTimeToLive,
-				};
-				bullets[bullet.uuid] = bullet;
-			}
-		}
+	  const {gamepad, raySpace} = controllers.right;
+	  if (gamepad.getButtonClick(XR_BUTTONS.TRIGGER)) {
+		const bullet = bulletPrototype.clone();
+		scene.add(bullet);
+		raySpace.getWorldPosition(bullet.position);
+		raySpace.getWorldQuaternion(bullet.quaternion);
+	  }
 	}
-
-	Object.values(bullets).forEach((bullet) => {
-		if (bullet.userData.timeToLive < 0) {
-			delete bullets[bullet.uuid];
-			scene.remove(bullet);
-			return;
-		}
-		const deltaVec = bullet.userData.velocity.clone().multiplyScalar(delta);
-		bullet.position.add(deltaVec);
-		bullet.userData.timeToLive -= delta;
-
-		targets
-			.filter((target) => target.visible)
-			.forEach((target) => {
-				const distance = target.position.distanceTo(bullet.position);
-				if (distance < 1) {
-					delete bullets[bullet.uuid];
-					scene.remove(bullet);
-
-					gsap.to(target.scale, {
-						duration: 0.3,
-						x: 0,
-						y: 0,
-						z: 0,
-						onComplete: () => {
-							target.visible = false;
-							setTimeout(() => {
-								target.visible = true;
-								target.position.x = Math.random() * 10 - 5;
-								target.position.z = -Math.random() * 5 - 5;
-
-								// Scale back up the target
-								gsap.to(target.scale, {
-									duration: 0.3,
-									x: 1,
-									y: 1,
-									z: 1,
-								});
-							}, 1000);
-						},
-					});
-
-					score += 10;
-					updateScoreDisplay();
-					if (scoreSound.isPlaying) scoreSound.stop();
-					scoreSound.play();
-				}
-			});
-	});
-	gsap.ticker.tick(delta);
-}
+  }
 
 init(setupScene, onFrame);
